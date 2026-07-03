@@ -42,25 +42,28 @@ def minutos_desde_ultima_publicacao():
 
 def chance_publicacao(minutos):
 
+    # Nunca publicou nada
     if minutos is None:
         return 100
 
+    # Janela de silêncio obrigatória
     if minutos < 15:
         return 0
 
-    if minutos < 30:
-        return 2
+    # Após 1 hora publica obrigatoriamente
+    if minutos >= 60:
+        return 100
 
-    if minutos < 60:
-        return 5
+    # Crescimento exponencial entre 15 e 60 min
+    progresso = (
+        minutos - 15
+    ) / 45
 
-    if minutos < 90:
-        return 15
+    chance = (
+        progresso ** 3
+    ) * 100
 
-    if minutos < 120:
-        return 30
-
-    return 60
+    return round(chance)
 
 
 def deve_publicar():
