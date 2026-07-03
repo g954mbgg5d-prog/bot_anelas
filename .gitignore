@@ -2,8 +2,20 @@ venv/
 __pycache__/
 *.pyc
 
+.env
+
 data/*.db
 
-logs/*.log
+logs/
+*.log
 
-.env
+twitter/session/
+twitter/playwright_profile/
+twitter/*.png
+twitter/*.jpg
+twitter/*.jpeg
+
+*.swp
+.DS_Store
+
+.cache/
