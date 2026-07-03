@@ -1,0 +1,22 @@
+[Unit]
+Description=Bot Anelas
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+User=root
+Group=root
+
+WorkingDirectory=/root/bot_anelas
+
+ExecStart=/root/bot_anelas/venv/bin/python /root/bot_anelas/main.py
+
+Restart=always
+RestartSec=10
+
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
