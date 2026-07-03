@@ -1,21 +1,77 @@
-venv/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
 
+# Virtualenv
+venv/
+.venv/
+
+# Environment variables
 .env
+.env.*
 
-data/*.db
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
 
+# Logs
 logs/
 *.log
 
-twitter/session/
-twitter/playwright_profile/
-twitter/*.png
-twitter/*.jpg
-twitter/*.jpeg
-
-*.swp
+# macOS
 .DS_Store
 
+# Vim
+*.swp
+*.swo
+
+# VSCode
+.vscode/
+
+# JetBrains
+.idea/
+
+# Playwright screenshots / testes
+*.png
+*.jpg
+*.jpeg
+
+# Downloads
+*.deb
+*.zip
+*.tar.gz
+
+# Browser profiles / sessions
+twitter/session/
+twitter/playwright_profile/
+playwright_profile/
+
+# Chrome / Chromium
+chrome-profile/
+twitter-bot-profile/
+
+# Cache
 .cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Pytest
+.pytest_cache/
+
+# Mypy
+.mypy_cache/
+
+# Ruff
+.ruff_cache/
+
+# Temporary files
+tmp/
+temp/
+
+# Systemd overrides locais
+*.service.local
