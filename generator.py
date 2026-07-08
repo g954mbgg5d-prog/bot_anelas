@@ -1,8 +1,14 @@
-import re
+import logging
 import random
+
 import pandas as pd
 
 import sheets
+
+
+logger = logging.getLogger(__name__)
+
+MAX_TENTATIVAS = 10
 
 
 def limpar(valor):
@@ -26,31 +32,17 @@ def linha_aleatoria(df):
     return df.sample().iloc[0]
 
 
-def gerar_frase():
+def gerar_valores():
 
     substantivos = sheets.get("substantivos")
     adjetivos = sheets.get("adjetivos")
     verbos = sheets.get("verbos")
     frases = sheets.get("frases")
     chamadas = sheets.get("chamada")
-    templates = sheets.get("templates")
-
-    template = (
-        linha_aleatoria(templates)["template"]
-    )
-
-    variaveis = set(
-        re.findall(
-            r"\{([a-zA-Z0-9_]+)\}",
-            template
-        )
-    )
 
     valores = {}
 
-    max_sub = 5
-
-    for i in range(1, max_sub + 1):
+    for i in range(1, 6):
 
         sub = linha_aleatoria(substantivos)
         adj = linha_aleatoria(adjetivos)
@@ -63,13 +55,17 @@ def gerar_frase():
             adjetivo = limpar(adj["masc"])
 
         valores[nome_variavel("artigo", i)] = artigo
+
         valores[nome_variavel("substantivo", i)] = limpar(
             sub["palavra"]
         )
+
         valores[nome_variavel("adjetivo", i)] = adjetivo
+
         valores[nome_variavel("de", i)] = limpar(
             sub["de"]
         )
+
         valores[nome_variavel("em", i)] = limpar(
             sub["em"]
         )
@@ -110,18 +106,59 @@ def gerar_frase():
             chamada["chamada"]
         )
 
-    try:
+    return valores
 
-        resultado = template.format(
-            **valores
+
+def gerar_frase():
+
+    templates = sheets.get("templates")
+
+    ultimo_erro = None
+
+    for tentativa in range(1, MAX_TENTATIVAS + 1):
+
+        template = limpar(
+            linha_aleatoria(templates)["template"]
         )
 
-    except KeyError as e:
+        try:
 
-        raise RuntimeError(
-            f"Template inválido. Variável ausente: {e}"
-        )
+            valores = gerar_valores()
 
-    return " ".join(
-        resultado.split()
+            resultado = template.format(
+                **valores
+            )
+
+            resultado = " ".join(
+                resultado.split()
+            )
+
+            if not resultado:
+                raise ValueError(
+                    "Resultado vazio"
+                )
+
+            return resultado
+
+        except (
+            KeyError,
+            ValueError,
+            IndexError,
+        ) as erro:
+
+            ultimo_erro = erro
+
+            logger.warning(
+                "Template invalido ignorado "
+                "(tentativa %s/%s): %r | erro: %s",
+                tentativa,
+                MAX_TENTATIVAS,
+                template,
+                erro,
+            )
+
+    raise RuntimeError(
+        "Nao foi possivel gerar uma frase valida "
+        f"apos {MAX_TENTATIVAS} tentativas. "
+        f"Ultimo erro: {ultimo_erro}"
     )
