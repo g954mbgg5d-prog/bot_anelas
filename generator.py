@@ -1,5 +1,4 @@
 import logging
-import random
 
 import pandas as pd
 
@@ -40,7 +39,15 @@ def gerar_valores():
     frases = sheets.get("frases")
     chamadas = sheets.get("chamada")
 
+    lugares = sheets.get("lugares")
+    coisas = sheets.get("coisas")
+    comidas = sheets.get("comidas")
+
     valores = {}
+
+    # ==================================================
+    # SUBSTANTIVOS E ADJETIVOS
+    # ==================================================
 
     for i in range(1, 6):
 
@@ -70,6 +77,10 @@ def gerar_valores():
             sub["em"]
         )
 
+    # ==================================================
+    # VERBOS
+    # ==================================================
+
     for i in range(1, 6):
 
         verbo = linha_aleatoria(verbos)
@@ -90,6 +101,10 @@ def gerar_valores():
             verbo["gerundio"]
         )
 
+    # ==================================================
+    # FRASES
+    # ==================================================
+
     for i in range(1, 6):
 
         frase = linha_aleatoria(frases)
@@ -98,12 +113,76 @@ def gerar_valores():
             frase["frase"]
         )
 
+    # ==================================================
+    # CHAMADAS
+    # ==================================================
+
     for i in range(1, 6):
 
         chamada = linha_aleatoria(chamadas)
 
         valores[nome_variavel("chamada", i)] = limpar(
             chamada["chamada"]
+        )
+
+    # ==================================================
+    # LUGARES
+    # ==================================================
+
+    for i in range(1, 6):
+
+        lugar = linha_aleatoria(lugares)
+
+        valores[nome_variavel("lugar", i)] = limpar(
+            lugar["lugar"]
+        )
+
+        valores[nome_variavel("de_lugar", i)] = limpar(
+            lugar["de_lugar"]
+        )
+
+        valores[nome_variavel("em_lugar", i)] = limpar(
+            lugar["em_lugar"]
+        )
+
+        valores[nome_variavel("pra_lugar", i)] = limpar(
+            lugar["pra_lugar"]
+        )
+
+    # ==================================================
+    # COISAS
+    # ==================================================
+
+    for i in range(1, 6):
+
+        coisa = linha_aleatoria(coisas)
+
+        valores[nome_variavel("coisa", i)] = limpar(
+            coisa["Coisa"]
+        )
+
+        valores[nome_variavel("artigo_coisa", i)] = limpar(
+            coisa["artigo_coisa"]
+        )
+
+        valores[nome_variavel("um_coisa", i)] = limpar(
+            coisa["um_coisa"]
+        )
+
+    # ==================================================
+    # COMIDAS
+    # ==================================================
+
+    for i in range(1, 6):
+
+        comida = linha_aleatoria(comidas)
+
+        valores[nome_variavel("comida", i)] = limpar(
+            comida["comida"]
+        )
+
+        valores[nome_variavel("um_comida", i)] = limpar(
+            comida["um_comida"]
         )
 
     return valores
