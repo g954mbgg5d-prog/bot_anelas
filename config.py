@@ -33,10 +33,7 @@ GIDS = {
 # FILA
 # ==================================================
 
-MIN_QUEUE_SIZE = 5
-
-# Quantos tweets gerar por lote ao abastecer
-QUEUE_BATCH_SIZE = 1
+MAX_QUEUE_SIZE = 5
 
 # ==================================================
 # SCHEDULER
