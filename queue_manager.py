@@ -1,3 +1,5 @@
+from config import MAX_QUEUE_SIZE
+
 from generator import gerar_frase
 
 from database import (
@@ -5,9 +7,6 @@ from database import (
     contar_pending,
     obter_proximo_pendente,
 )
-
-
-MAX_QUEUE_SIZE = 5
 
 
 def abastecer_fila():

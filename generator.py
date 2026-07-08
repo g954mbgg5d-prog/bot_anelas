@@ -158,7 +158,7 @@ def gerar_valores():
         coisa = linha_aleatoria(coisas)
 
         valores[nome_variavel("coisa", i)] = limpar(
-            coisa["Coisa"]
+            coisa["coisa"]
         )
 
         valores[nome_variavel("artigo_coisa", i)] = limpar(
