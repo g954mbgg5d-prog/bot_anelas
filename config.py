@@ -24,16 +24,19 @@ GIDS = {
     "frases": "376019489",
     "chamada": "595278995",
     "templates": "1351279715",
+    "lugares": "743943434",
+    "coisas": "1073598073",
+    "comidas": "340777854",
 }
 
 # ==================================================
 # FILA
 # ==================================================
 
-MIN_QUEUE_SIZE = 100
+MIN_QUEUE_SIZE = 5
 
 # Quantos tweets gerar por lote ao abastecer
-QUEUE_BATCH_SIZE = 50
+QUEUE_BATCH_SIZE = 1
 
 # ==================================================
 # SCHEDULER
