@@ -1,8 +1,3 @@
-from config import (
-    MIN_QUEUE_SIZE,
-    QUEUE_BATCH_SIZE,
-)
-
 from generator import gerar_frase
 
 from database import (
@@ -12,33 +7,25 @@ from database import (
 )
 
 
-def gerar_lote(
-    quantidade=QUEUE_BATCH_SIZE
-):
-
-    adicionados = 0
-
-    for _ in range(quantidade):
-
-        texto = gerar_frase()
-
-        if inserir_tweet(texto):
-            adicionados += 1
-
-    return adicionados
+MAX_QUEUE_SIZE = 5
 
 
 def abastecer_fila():
 
     total = contar_pending()
 
-    while total < MIN_QUEUE_SIZE:
+    faltam = MAX_QUEUE_SIZE - total
 
-        gerar_lote()
+    if faltam <= 0:
+        return total
 
-        total = contar_pending()
+    for _ in range(faltam):
 
-    return total
+        texto = gerar_frase()
+
+        inserir_tweet(texto)
+
+    return contar_pending()
 
 
 def proximo_tweet():
