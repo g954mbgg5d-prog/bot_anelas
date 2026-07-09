@@ -41,8 +41,33 @@ MAX_QUEUE_SIZE = 5
 
 LOOP_INTERVAL_SECONDS = 60
 
-# Atualizar planilha a cada 30 minutos
-SHEETS_SYNC_INTERVAL_MINUTES = 30
+MIN_POST_INTERVAL_MINUTES = 60
+MAX_POST_INTERVAL_MINUTES = 120
+
+SHEETS_SYNC_INTERVAL_MINUTES = 10
+
+# ==================================================
+# COOLDOWNS
+# ==================================================
+
+COOLDOWNS = {
+
+    "templates": 30,
+    "substantivos": 30,
+    "adjetivos": 15,
+    "verbos": 15,
+    "frases": 10,
+    "chamada": 5,
+    "lugares": 8,
+    "coisas": 5,
+    "comidas": 7,
+}
+
+# ==================================================
+# GERAÇÃO
+# ==================================================
+
+MAX_TEMPLATE_ATTEMPTS = 10
 
 # ==================================================
 # LOGGING

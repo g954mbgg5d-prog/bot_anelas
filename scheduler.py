@@ -1,6 +1,10 @@
 import random
 from datetime import datetime
 
+from config import (
+    MIN_POST_INTERVAL_MINUTES,
+    MAX_POST_INTERVAL_MINUTES,
+)
 from database import get_connection
 
 
@@ -29,15 +33,11 @@ def minutos_desde_ultima_publicacao():
     if not publicado_em:
         return None
 
-    ultima_data = datetime.fromisoformat(
-        publicado_em
-    )
+    ultima_data = datetime.fromisoformat(publicado_em)
 
     agora = datetime.utcnow()
 
-    return (
-        agora - ultima_data
-    ).total_seconds() / 60
+    return (agora - ultima_data).total_seconds() / 60
 
 
 def chance_publicacao(minutos):
@@ -45,42 +45,20 @@ def chance_publicacao(minutos):
     if minutos is None:
         return 100
 
-    if minutos < 15:
+    if minutos < MIN_POST_INTERVAL_MINUTES:
         return 0
 
-    if minutos >= 60:
+    if minutos >= MAX_POST_INTERVAL_MINUTES:
         return 100
 
-    pontos = [
-        (15, 1),
-        (20, 5),
-        (30, 15),
-        (40, 30),
-        (50, 55),
-        (55, 75),
-        (60, 100),
-    ]
+    progresso = (
+        (minutos - MIN_POST_INTERVAL_MINUTES)
+        / (MAX_POST_INTERVAL_MINUTES - MIN_POST_INTERVAL_MINUTES)
+    )
 
-    for i in range(len(pontos) - 1):
+    chance = progresso ** 2 * 100
 
-        minuto_inicio, chance_inicio = pontos[i]
-        minuto_fim, chance_fim = pontos[i + 1]
-
-        if minuto_inicio <= minutos < minuto_fim:
-
-            progresso = (
-                minutos - minuto_inicio
-            ) / (
-                minuto_fim - minuto_inicio
-            )
-
-            chance = chance_inicio + progresso * (
-                chance_fim - chance_inicio
-            )
-
-            return round(chance)
-
-    return 100
+    return round(chance)
 
 
 def deve_publicar():
