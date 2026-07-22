@@ -13,12 +13,12 @@ from config import (
 
 from database import (
     init_db,
-    marcar_publicado,
+    registrar_cooldowns,
 )
 
 from queue_manager import (
-    abastecer_fila,
-    proximo_tweet,
+    gerar_tweet,
+    salvar_publicado,
 )
 
 from scheduler import (
@@ -29,9 +29,6 @@ from publisher import (
     publicar,
 )
 
-# ==================================================
-# LOGGING
-# ==================================================
 
 LOGS_DIR.mkdir(
     parents=True,
@@ -50,10 +47,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
-# ==================================================
-# SHEETS
-# ==================================================
 
 ultima_sincronizacao = None
 
@@ -94,20 +87,9 @@ def sincronizar_planilhas():
         ultima_sincronizacao = agora
 
 
-# ==================================================
-# LOOP
-# ==================================================
-
 def executar_ciclo():
 
     sincronizar_planilhas()
-
-    total = abastecer_fila()
-
-    logger.info(
-        "Fila pendente: %s",
-        total
-    )
 
     if not deve_publicar():
 
@@ -117,21 +99,14 @@ def executar_ciclo():
 
         return
 
-    tweet = proximo_tweet()
+    texto, manager = gerar_tweet()
 
-    if not tweet:
-
-        logger.warning(
-            "Nenhum tweet pendente encontrado"
-        )
-
-        return
-
-    sucesso = publicar(
-        tweet["texto"]
+    logger.info(
+        "Tweet gerado: %s",
+        texto
     )
 
-    if not sucesso:
+    if not publicar(texto):
 
         logger.warning(
             "Falha na publicacao"
@@ -139,13 +114,14 @@ def executar_ciclo():
 
         return
 
-    marcar_publicado(
-        tweet["id"]
+    salvar_publicado(texto)
+
+    registrar_cooldowns(
+        manager
     )
 
     logger.info(
-        "Tweet publicado: id=%s",
-        tweet["id"]
+        "Tweet publicado."
     )
 
 

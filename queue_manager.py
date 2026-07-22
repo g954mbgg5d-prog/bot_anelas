@@ -1,32 +1,37 @@
-from config import MAX_QUEUE_SIZE
+from database import (
+    inserir_tweet,
+    tweet_existe,
+)
 
 from generator import gerar_frase
 
-from database import (
-    inserir_tweet,
-    contar_pending,
-    obter_proximo_pendente,
-)
+
+def gerar_tweet():
+
+    tentativas = 0
+
+    while True:
+
+        tentativas += 1
+
+        texto, manager = gerar_frase()
+
+        if tweet_existe(texto):
+
+            if tentativas % 50 == 0:
+
+                print(
+                    f"Ja foram feitas {tentativas} tentativas para gerar um tweet inedito..."
+                )
+
+            continue
+
+        return texto, manager
 
 
-def abastecer_fila():
+def salvar_publicado(texto):
 
-    total = contar_pending()
-
-    faltam = MAX_QUEUE_SIZE - total
-
-    if faltam <= 0:
-        return total
-
-    for _ in range(faltam):
-
-        texto = gerar_frase()
-
-        inserir_tweet(texto)
-
-    return contar_pending()
-
-
-def proximo_tweet():
-
-    return obter_proximo_pendente()
+    inserir_tweet(
+        texto,
+        status="published"
+    )

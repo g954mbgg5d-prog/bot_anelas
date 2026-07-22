@@ -1,243 +1,303 @@
 import logging
+import re
 
-import pandas as pd
+from config import MAX_TEMPLATE_ATTEMPTS
 
-import sheets
+from selection_manager import SelectionManager
 
 
 logger = logging.getLogger(__name__)
 
-MAX_TENTATIVAS = 10
+PLACEHOLDER_RE = re.compile(r"\{([a-z_]+\d*)\}")
 
 
-def limpar(valor):
+# placeholder -> categoria
+CATEGORIAS = {
 
-    if pd.isna(valor):
-        return ""
+    "substantivo": "substantivos",
 
-    return str(valor).strip()
+    "infinitivo": "verbos",
+    "presente": "verbos",
+    "passado": "verbos",
+    "gerundio": "verbos",
+
+    "frase": "frases",
+
+    "chamada": "chamada",
+
+    "lugar": "lugares",
+    "de_lugar": "lugares",
+    "em_lugar": "lugares",
+    "pra_lugar": "lugares",
+
+    "coisa": "coisas",
+    "artigo_coisa": "coisas",
+    "um_coisa": "coisas",
+
+    "comida": "comidas",
+    "um_comida": "comidas",
+}
 
 
-def nome_variavel(base, indice):
+def dividir_placeholder(nome):
 
-    if indice == 1:
-        return base
+    m = re.match(
+        r"(.+?)(\d*)$",
+        nome
+    )
 
-    return f"{base}{indice}"
+    base = m.group(1)
+    indice = m.group(2)
 
-
-def linha_aleatoria(df):
-
-    return df.sample().iloc[0]
-
-
-def gerar_valores():
-
-    substantivos = sheets.get("substantivos")
-    adjetivos = sheets.get("adjetivos")
-    verbos = sheets.get("verbos")
-    frases = sheets.get("frases")
-    chamadas = sheets.get("chamada")
-
-    lugares = sheets.get("lugares")
-    coisas = sheets.get("coisas")
-    comidas = sheets.get("comidas")
-
-    valores = {}
-
-    # ==================================================
-    # SUBSTANTIVOS E ADJETIVOS
-    # ==================================================
-
-    for i in range(1, 6):
-
-        sub = linha_aleatoria(substantivos)
-        adj = linha_aleatoria(adjetivos)
-
-        artigo = limpar(sub["artigo"])
-
-        if artigo == "a":
-            adjetivo = limpar(adj["fem"])
-        else:
-            adjetivo = limpar(adj["masc"])
-
-        valores[nome_variavel("artigo", i)] = artigo
-
-        valores[nome_variavel("substantivo", i)] = limpar(
-            sub["palavra"]
-        )
-
-        valores[nome_variavel("adjetivo", i)] = adjetivo
-
-        valores[nome_variavel("de", i)] = limpar(
-            sub["de"]
-        )
-
-        valores[nome_variavel("em", i)] = limpar(
-            sub["em"]
-        )
-
-    # ==================================================
-    # VERBOS
-    # ==================================================
-
-    for i in range(1, 6):
-
-        verbo = linha_aleatoria(verbos)
-
-        valores[nome_variavel("infinitivo", i)] = limpar(
-            verbo["infinitivo"]
-        )
-
-        valores[nome_variavel("presente", i)] = limpar(
-            verbo["presente"]
-        )
-
-        valores[nome_variavel("passado", i)] = limpar(
-            verbo["passado"]
-        )
-
-        valores[nome_variavel("gerundio", i)] = limpar(
-            verbo["gerundio"]
-        )
-
-    # ==================================================
-    # FRASES
-    # ==================================================
-
-    for i in range(1, 6):
-
-        frase = linha_aleatoria(frases)
-
-        valores[nome_variavel("frase", i)] = limpar(
-            frase["frase"]
-        )
-
-    # ==================================================
-    # CHAMADAS
-    # ==================================================
-
-    for i in range(1, 6):
-
-        chamada = linha_aleatoria(chamadas)
-
-        valores[nome_variavel("chamada", i)] = limpar(
-            chamada["chamada"]
-        )
-
-    # ==================================================
-    # LUGARES
-    # ==================================================
-
-    for i in range(1, 6):
-
-        lugar = linha_aleatoria(lugares)
-
-        valores[nome_variavel("lugar", i)] = limpar(
-            lugar["lugar"]
-        )
-
-        valores[nome_variavel("de_lugar", i)] = limpar(
-            lugar["de_lugar"]
-        )
-
-        valores[nome_variavel("em_lugar", i)] = limpar(
-            lugar["em_lugar"]
-        )
-
-        valores[nome_variavel("pra_lugar", i)] = limpar(
-            lugar["pra_lugar"]
-        )
-
-    # ==================================================
-    # COISAS
-    # ==================================================
-
-    for i in range(1, 6):
-
-        coisa = linha_aleatoria(coisas)
-
-        valores[nome_variavel("coisa", i)] = limpar(
-            coisa["coisa"]
-        )
-
-        valores[nome_variavel("artigo_coisa", i)] = limpar(
-            coisa["artigo_coisa"]
-        )
-
-        valores[nome_variavel("um_coisa", i)] = limpar(
-            coisa["um_coisa"]
-        )
-
-    # ==================================================
-    # COMIDAS
-    # ==================================================
-
-    for i in range(1, 6):
-
-        comida = linha_aleatoria(comidas)
-
-        valores[nome_variavel("comida", i)] = limpar(
-            comida["comida"]
-        )
-
-        valores[nome_variavel("um_comida", i)] = limpar(
-            comida["um_comida"]
-        )
-
-    return valores
+    return base, indice
 
 
 def gerar_frase():
 
-    templates = sheets.get("templates")
-
     ultimo_erro = None
 
-    for tentativa in range(1, MAX_TENTATIVAS + 1):
+    for tentativa in range(MAX_TEMPLATE_ATTEMPTS):
 
-        template = limpar(
-            linha_aleatoria(templates)["template"]
-        )
+        manager = SelectionManager()
 
         try:
 
-            valores = gerar_valores()
+            template = manager.template()
 
-            resultado = template.format(
+            placeholders = set(
+                PLACEHOLDER_RE.findall(
+                    template
+                )
+            )
+
+            valores = {}
+
+            grupos = {}
+
+            #
+            # AGRUPA PLACEHOLDERS
+            #
+
+            for placeholder in placeholders:
+
+                base, indice = dividir_placeholder(
+                    placeholder
+                )
+
+                grupos.setdefault(
+                    indice,
+                    set()
+                ).add(base)
+
+            #
+            # PROCESSA CADA GRUPO
+            #
+
+            for indice, bases in grupos.items():
+
+                sufixo = indice
+
+                #
+                # SUBSTANTIVOS
+                #
+
+                if (
+                    "substantivo"
+                    in bases
+                ):
+
+                    dados, linha = manager.escolher(
+                        "substantivos",
+                        sufixo
+                    )
+
+                    valores.update(
+                        dados
+                    )
+
+                    if (
+                        "adjetivo"
+                        in bases
+                    ):
+
+                        valores.update(
+
+                            manager.escolher_adjetivo(
+                                linha["artigo"],
+                                sufixo
+                            )
+
+                        )
+
+                #
+                # VERBOS
+                #
+
+                if any(
+
+                    b in bases
+
+                    for b in [
+
+                        "infinitivo",
+                        "presente",
+                        "passado",
+                        "gerundio",
+
+                    ]
+
+                ):
+
+                    dados, _ = manager.escolher(
+                        "verbos",
+                        sufixo
+                    )
+
+                    valores.update(
+                        dados
+                    )
+
+                #
+                # FRASES
+                #
+
+                if "frase" in bases:
+
+                    dados, _ = manager.escolher(
+                        "frases",
+                        sufixo
+                    )
+
+                    valores.update(
+                        dados
+                    )
+
+                #
+                # CHAMADAS
+                #
+
+                if "chamada" in bases:
+
+                    dados, _ = manager.escolher(
+                        "chamada",
+                        sufixo
+                    )
+
+                    valores.update(
+                        dados
+                    )
+
+                #
+                # LUGARES
+                #
+
+                if any(
+
+                    b in bases
+
+                    for b in [
+
+                        "lugar",
+                        "de_lugar",
+                        "em_lugar",
+                        "pra_lugar",
+
+                    ]
+
+                ):
+
+                    dados, _ = manager.escolher(
+                        "lugares",
+                        sufixo
+                    )
+
+                    valores.update(
+                        dados
+                    )
+
+                #
+                # COISAS
+                #
+
+                if any(
+
+                    b in bases
+
+                    for b in [
+
+                        "coisa",
+                        "artigo_coisa",
+                        "um_coisa",
+
+                    ]
+
+                ):
+
+                    dados, _ = manager.escolher(
+                        "coisas",
+                        sufixo
+                    )
+
+                    valores.update(
+                        dados
+                    )
+
+                #
+                # COMIDAS
+                #
+
+                if any(
+
+                    b in bases
+
+                    for b in [
+
+                        "comida",
+                        "um_comida",
+
+                    ]
+
+                ):
+
+                    dados, _ = manager.escolher(
+                        "comidas",
+                        sufixo
+                    )
+
+                    valores.update(
+                        dados
+                    )
+
+            texto = template.format(
                 **valores
             )
 
-            resultado = " ".join(
-                resultado.split()
+            texto = " ".join(
+                texto.split()
             )
 
-            if not resultado:
-                raise ValueError(
-                    "Resultado vazio"
+            if not texto:
+
+                raise RuntimeError(
+                    "Texto vazio."
                 )
 
-            return resultado
+            return (
+                texto,
+                manager
+            )
 
-        except (
-            KeyError,
-            ValueError,
-            IndexError,
-        ) as erro:
+        except Exception as erro:
 
             ultimo_erro = erro
 
             logger.warning(
-                "Template invalido ignorado "
-                "(tentativa %s/%s): %r | erro: %s",
-                tentativa,
-                MAX_TENTATIVAS,
+                "Template inválido ignorado: %r | erro: %s",
                 template,
                 erro,
             )
 
     raise RuntimeError(
-        "Nao foi possivel gerar uma frase valida "
-        f"apos {MAX_TENTATIVAS} tentativas. "
-        f"Ultimo erro: {ultimo_erro}"
+        ultimo_erro
     )
+

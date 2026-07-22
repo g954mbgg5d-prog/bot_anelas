@@ -1,20 +1,29 @@
-import sqlite3
 import hashlib
+import sqlite3
 from datetime import datetime
 
 from config import (
     DATABASE_PATH,
-    STATUS_PENDING,
     STATUS_PUBLISHED,
-    STATUS_DISCARDED,
+    COOLDOWNS,
 )
 
 
+# ==================================================
+# CONEXÃO
+# ==================================================
+
 def get_connection():
+
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
+
     return conn
 
+
+# ==================================================
+# INIT
+# ==================================================
 
 def init_db():
 
@@ -23,6 +32,7 @@ def init_db():
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS tweets (
+
         id INTEGER PRIMARY KEY AUTOINCREMENT,
 
         texto TEXT NOT NULL,
@@ -34,19 +44,49 @@ def init_db():
         criado_em TEXT NOT NULL,
 
         publicado_em TEXT
+
     )
     """)
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS metadata (
+
         chave TEXT PRIMARY KEY,
+
         valor TEXT
+
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS recent_items (
+
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        categoria TEXT NOT NULL,
+
+        indice INTEGER NOT NULL,
+
+        usado_em TEXT NOT NULL
+
+    )
+    """)
+
+    cur.execute("""
+    CREATE INDEX IF NOT EXISTS idx_recent_categoria
+    ON recent_items (
+        categoria,
+        id DESC
     )
     """)
 
     conn.commit()
     conn.close()
 
+
+# ==================================================
+# HASH
+# ==================================================
 
 def gerar_hash(texto):
 
@@ -57,33 +97,45 @@ def gerar_hash(texto):
 
 def tweet_existe(texto):
 
-    tweet_hash = gerar_hash(texto)
-
     conn = get_connection()
     cur = conn.cursor()
 
     cur.execute(
         """
-        SELECT id
-        FROM tweets
-        WHERE hash = ?
+        SELECT EXISTS(
+
+            SELECT 1
+
+            FROM tweets
+
+            WHERE hash = ?
+
+        )
         """,
-        (tweet_hash,)
+        (
+            gerar_hash(texto),
+        )
     )
 
-    resultado = cur.fetchone()
+    existe = bool(
+        cur.fetchone()[0]
+    )
 
     conn.close()
 
-    return resultado is not None
+    return existe
 
+
+# ==================================================
+# TWEETS
+# ==================================================
 
 def inserir_tweet(
     texto,
-    status=STATUS_PENDING
+    status=STATUS_PUBLISHED
 ):
 
-    tweet_hash = gerar_hash(texto)
+    agora = datetime.utcnow().isoformat()
 
     conn = get_connection()
     cur = conn.cursor()
@@ -93,18 +145,27 @@ def inserir_tweet(
         cur.execute(
             """
             INSERT INTO tweets (
+
                 texto,
+
                 hash,
+
                 status,
-                criado_em
+
+                criado_em,
+
+                publicado_em
+
             )
-            VALUES (?, ?, ?, ?)
+
+            VALUES (?, ?, ?, ?, ?)
             """,
             (
                 texto,
-                tweet_hash,
+                gerar_hash(texto),
                 status,
-                datetime.utcnow().isoformat()
+                agora,
+                agora,
             )
         )
 
@@ -121,96 +182,14 @@ def inserir_tweet(
         conn.close()
 
 
-def contar_pending():
+# ==================================================
+# METADATA
+# ==================================================
 
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute(
-        """
-        SELECT COUNT(*)
-        FROM tweets
-        WHERE status = ?
-        """,
-        (STATUS_PENDING,)
-    )
-
-    total = cur.fetchone()[0]
-
-    conn.close()
-
-    return total
-
-
-def obter_proximo_pendente():
-
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute(
-        """
-        SELECT *
-        FROM tweets
-        WHERE status = ?
-        ORDER BY criado_em ASC
-        LIMIT 1
-        """,
-        (STATUS_PENDING,)
-    )
-
-    tweet = cur.fetchone()
-
-    conn.close()
-
-    return tweet
-
-
-def marcar_publicado(tweet_id):
-
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute(
-        """
-        UPDATE tweets
-        SET
-            status = ?,
-            publicado_em = ?
-        WHERE id = ?
-        """,
-        (
-            STATUS_PUBLISHED,
-            datetime.utcnow().isoformat(),
-            tweet_id
-        )
-    )
-
-    conn.commit()
-    conn.close()
-
-
-def marcar_descartado(tweet_id):
-
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute(
-        """
-        UPDATE tweets
-        SET status = ?
-        WHERE id = ?
-        """,
-        (
-            STATUS_DISCARDED,
-            tweet_id
-        )
-    )
-
-    conn.commit()
-    conn.close()
-
-
-def set_metadata(chave, valor):
+def set_metadata(
+    chave,
+    valor
+):
 
     conn = get_connection()
     cur = conn.cursor()
@@ -218,14 +197,18 @@ def set_metadata(chave, valor):
     cur.execute(
         """
         INSERT OR REPLACE INTO metadata (
+
             chave,
+
             valor
+
         )
+
         VALUES (?, ?)
         """,
         (
             chave,
-            str(valor)
+            str(valor),
         )
     )
 
@@ -233,7 +216,10 @@ def set_metadata(chave, valor):
     conn.close()
 
 
-def get_metadata(chave, default=None):
+def get_metadata(
+    chave,
+    default=None
+):
 
     conn = get_connection()
     cur = conn.cursor()
@@ -241,10 +227,14 @@ def get_metadata(chave, default=None):
     cur.execute(
         """
         SELECT valor
+
         FROM metadata
+
         WHERE chave = ?
         """,
-        (chave,)
+        (
+            chave,
+        )
     )
 
     resultado = cur.fetchone()
@@ -252,6 +242,192 @@ def get_metadata(chave, default=None):
     conn.close()
 
     if resultado:
+
         return resultado["valor"]
 
     return default
+
+
+# ==================================================
+# COOLDOWN
+# ==================================================
+
+def obter_indices_bloqueados(categoria):
+
+    cooldown = COOLDOWNS.get(
+        categoria,
+        0
+    )
+
+    if cooldown <= 0:
+
+        return set()
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT indice
+
+        FROM recent_items
+
+        WHERE categoria = ?
+
+        ORDER BY id DESC
+
+        LIMIT ?
+        """,
+        (
+            categoria,
+            cooldown,
+        )
+    )
+
+    resultado = {
+
+        row["indice"]
+
+        for row in cur.fetchall()
+
+    }
+
+    conn.close()
+
+    return resultado
+
+
+def limpar_recent_items(categoria):
+
+    manter = COOLDOWNS.get(
+        categoria,
+        0
+    ) + 5
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        DELETE FROM recent_items
+
+        WHERE categoria = ?
+
+        AND id NOT IN (
+
+            SELECT id
+
+            FROM recent_items
+
+            WHERE categoria = ?
+
+            ORDER BY id DESC
+
+            LIMIT ?
+
+        )
+        """,
+        (
+            categoria,
+            categoria,
+            manter,
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def registrar_item(
+    categoria,
+    indice
+):
+
+    manter = max(
+        COOLDOWNS.get(categoria, 0),
+        1,
+    )
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    agora = datetime.utcnow().isoformat()
+
+    #
+    # Registra o item
+    #
+
+    cur.execute(
+        """
+        INSERT INTO recent_items (
+
+            categoria,
+
+            indice,
+
+            usado_em
+
+        )
+
+        VALUES (?, ?, ?)
+        """,
+        (
+            categoria,
+            indice,
+            agora,
+        )
+    )
+
+    #
+    # Remove tudo que passou do cooldown
+    #
+
+    cur.execute(
+        """
+        DELETE FROM recent_items
+
+        WHERE categoria = ?
+
+        AND id NOT IN (
+
+            SELECT id
+
+            FROM (
+
+                SELECT id
+
+                FROM recent_items
+
+                WHERE categoria = ?
+
+                ORDER BY id DESC
+
+                LIMIT ?
+
+            )
+
+        )
+        """,
+        (
+            categoria,
+            categoria,
+            manter,
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+def registrar_cooldowns(manager):
+
+    cooldowns = manager.cooldowns()
+
+    for categoria, indices in cooldowns.items():
+
+        for indice in indices:
+
+            registrar_item(
+                categoria,
+                indice,
+            )
+
